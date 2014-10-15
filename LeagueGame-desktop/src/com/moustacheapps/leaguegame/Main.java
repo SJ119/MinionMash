@@ -7,7 +7,7 @@ import com.moustacheapps.leaguegame.LGGame;
 public class Main {
 	public static void main(String[] args) {
 		LwjglApplicationConfiguration cfg = new LwjglApplicationConfiguration();
-		cfg.title = "DoubleFlap";
+		cfg.title = "LeagueGame";
 		cfg.useGL20 = true;
 		cfg.height = 1920 / 3;
 		cfg.width = 1080 / 3;

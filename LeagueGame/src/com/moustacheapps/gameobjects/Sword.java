@@ -36,16 +36,21 @@ public class Sword {
 			isOffScreen = true;
 			}
 		} else if (velocity.x > 0) {
-			boundingRectangle.set(position.x -4, position.y +3, height, width);
+			boundingRectangle.set(position.x - 4, GameWorld.midPointY - 1, height, width);
 			if (position.x > (GameWorld.midPointX * 2) + 12) {
 			isOffScreen = true;
 			}
 		} else if (velocity.x < 0) {
-			boundingRectangle.set(position.x -4, position.y +3, height, width);
+			boundingRectangle.set(position.x - 4, GameWorld.midPointY - 1, height, width);
 			if (position.x < - 12){
 			isOffScreen = true;
 			}
 		}
+	}
+	
+	public void stop() {
+		velocity.x = 0;
+		velocity.y = 0;
 	}
 	
 	public int getXX() {
@@ -70,6 +75,10 @@ public class Sword {
 	
 	public int getHeight() {
 		return height;
+	}
+	
+	public Rectangle getBoundingRectangle(){
+		return boundingRectangle;
 	}
 	
 	public boolean isOffScreen(){

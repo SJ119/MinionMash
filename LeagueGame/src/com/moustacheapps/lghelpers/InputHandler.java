@@ -5,32 +5,38 @@ import java.util.List;
 
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Vector2;
+import com.moustacheapps.gameobjects.Minion;
+import com.moustacheapps.gameobjects.MinionGenerator;
 import com.moustacheapps.gameobjects.Ninja;
 import com.moustacheapps.gameobjects.Ninja.Direction;
 import com.moustacheapps.gameworld.GameWorld;
+import com.moustacheapps.screens.GameScreen;
 import com.moustacheapps.ui.SimpleButton;
 
 public class InputHandler implements InputProcessor {
 	private Ninja ninja;
-	
+
 	private GameWorld myWorld;
 
 	private List<SimpleButton> inputSections, retryButtons;
+
+	private ArrayList<Minion> minions = new ArrayList<Minion>();
+
+	private Minion minion;
 
 	private SimpleButton playButton, retryButton, leftTap, rightTap, fullTap;
 
 	private float scaleFactorX;
 	private float scaleFactorY;
-	private boolean shuffleTap = false;
 	public static int shuffleState = 0;
 	public int gameWidth, gameHeight;
-	
-	private Vector2 velocityU = new Vector2(0,-200);
-	private Vector2 velocityD = new Vector2(0,200);
+
+	private Vector2 velocityU = new Vector2(0, -200);
+	private Vector2 velocityD = new Vector2(0, 200);
 	private Vector2 velocityL = new Vector2(-200, 0);
 	private Vector2 velocityR = new Vector2(200, 0);
-	
 
 	public InputHandler(GameWorld myWorld, float scaleFactorX,
 			float scaleFactorY, int gameWidth, int gameHeight) {
@@ -42,22 +48,21 @@ public class InputHandler implements InputProcessor {
 		this.scaleFactorY = scaleFactorY;
 		this.gameWidth = gameWidth;
 		this.gameHeight = gameHeight;
-		
+		this.minions = MinionGenerator.minions;
 		inputSections = new ArrayList<SimpleButton>();
 
-		playButton = new SimpleButton(
-				gameWidth / 2 - (LGAssetLoader.playButtonUp.getRegionWidth() / 2),
-				midPointY + 35, 29, 16, LGAssetLoader.playButtonUp,
+		playButton = new SimpleButton(gameWidth / 2
+				- (LGAssetLoader.playButtonUp.getRegionWidth() / 2),
+				midPointY + 60, 29, 16, LGAssetLoader.playButtonUp,
 				LGAssetLoader.playButtonDown);
 		leftTap = new SimpleButton(0, 0, 136, GameWorld.getMidPointY() * 2,
 				null, null);
 		rightTap = new SimpleButton(136, 0, 136, GameWorld.getMidPointY() * 2,
 				null, null);
-		fullTap = new SimpleButton(0, 0, gameWidth, gameHeight,
-				null, null);
-		retryButton = new SimpleButton(
-				gameWidth / 2 - (LGAssetLoader.backButtonUp.getRegionWidth() / 2),
-				midPointY + 35, 29, 16, LGAssetLoader.backButtonUp,
+		fullTap = new SimpleButton(0, 0, gameWidth, gameHeight, null, null);
+		retryButton = new SimpleButton(gameWidth / 2
+				- (LGAssetLoader.backButtonUp.getRegionWidth() / 2),
+				midPointY + 60, 29, 16, LGAssetLoader.backButtonUp,
 				LGAssetLoader.backButtonDown);
 
 		inputSections.add(leftTap);
@@ -68,9 +73,9 @@ public class InputHandler implements InputProcessor {
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
 		screenX = scaleX(screenX);
 		screenY = scaleY(screenY);
-		
-		float ratio = ((float) gameHeight/(float) gameWidth);
-		boolean aboveDownRight = (screenX * ratio > screenY );
+
+		float ratio = ((float) gameHeight / (float) gameWidth);
+		boolean aboveDownRight = (screenX * ratio > screenY);
 		boolean aboveUpRight = (screenX < (gameWidth - screenY / ratio));
 
 		if (myWorld.isMenu()) {
@@ -80,24 +85,44 @@ public class InputHandler implements InputProcessor {
 				if (aboveDownRight) {
 					if (aboveUpRight) {
 						ninja.direction = Direction.UP;
-						myWorld.initSword(velocityU);
+						if (!checkDistance()) {
+							myWorld.initSword(velocityU);
+							
+						} else {
+							ninja.direction = Direction.UPMELEE;
+							
+						}
 					} else {
 						ninja.direction = Direction.RIGHT;
-						myWorld.initSword(velocityR);
+						if (!checkDistance()) {
+							myWorld.initSword(velocityR);
+						} else {
+							ninja.direction = Direction.RIGHTMELEE;
+						}
 					}
 				} else {
 					if (aboveUpRight) {
 						ninja.direction = Direction.LEFT;
-						myWorld.initSword(velocityL);
+						if (!checkDistance()) {
+							myWorld.initSword(velocityL);
+						} else {
+							ninja.direction = Direction.LEFTMELEE;
+						}
 					} else {
 						ninja.direction = Direction.DOWN;
-						myWorld.initSword(velocityD);
+						if (!checkDistance()) {
+							myWorld.initSword(velocityD);
+						} else {
+							ninja.direction = Direction.DOWNMELEE;
+						}
 					}
 				}
 			}
+			GameScreen.runTime2 = 0;
 		} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
 			retryButton.isTouchDown(screenX, screenY);
-			fullTap.isTouchDown(screenX, screenY);
+			leftTap.isTouchDown(screenX, screenY);
+			rightTap.isTouchDown(screenX, screenY);
 		}
 
 		return true;
@@ -113,11 +138,11 @@ public class InputHandler implements InputProcessor {
 			}
 		} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
 			if (retryButton.isTouchUp(screenX, screenY)) {
-				myWorld.restart();
+				myWorld.menu();
 				return true;
 			} else if (leftTap.isTouchUp(screenX, screenY)
 					|| rightTap.isTouchUp(screenX, screenY)) {
-				myWorld.restart();
+				//myWorld.restart();
 				return true;
 			}
 		}
@@ -134,9 +159,14 @@ public class InputHandler implements InputProcessor {
 				myWorld.start();
 			} else if (myWorld.isRunning()) {
 				ninja.direction = Direction.DOWN;
-				myWorld.initSword(velocityD);
+				if (!checkDistance()) {
+					myWorld.initSword(velocityD);
+				} else {
+					ninja.direction = Direction.DOWNMELEE;
+				}
+				GameScreen.runTime2 = 0;
 			} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
-				myWorld.restart();
+				myWorld.menu();
 			}
 
 		} else if (keycode == Keys.DPAD_UP) {
@@ -145,9 +175,14 @@ public class InputHandler implements InputProcessor {
 				myWorld.start();
 			} else if (myWorld.isRunning()) {
 				ninja.direction = Direction.UP;
-				myWorld.initSword(velocityU);
+				if (!checkDistance()) {
+					myWorld.initSword(velocityU);
+				} else {
+					ninja.direction = Direction.UPMELEE;
+				}
+				GameScreen.runTime2 = 0;
 			} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
-				myWorld.restart();
+				myWorld.menu();
 			}
 
 		} else if (keycode == Keys.DPAD_LEFT) {
@@ -156,25 +191,73 @@ public class InputHandler implements InputProcessor {
 				myWorld.start();
 			} else if (myWorld.isRunning()) {
 				ninja.direction = Direction.LEFT;
-				myWorld.initSword(velocityL);
+				if (!checkDistance()) {
+					myWorld.initSword(velocityL);
+				} else {
+					ninja.direction = Direction.LEFTMELEE;
+				}
+				GameScreen.runTime2 = 0;
 			} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
-				myWorld.restart();
+				myWorld.menu();
 			}
-			
+
 		} else if (keycode == Keys.DPAD_RIGHT) {
-			
+
 			if (myWorld.isMenu()) {
 				myWorld.start();
 			} else if (myWorld.isRunning()) {
 				ninja.direction = Direction.RIGHT;
-				myWorld.initSword(velocityR);
+				if (!checkDistance()) {
+					myWorld.initSword(velocityR);
+				} else {
+					ninja.direction = Direction.RIGHTMELEE;
+				}
+				GameScreen.runTime2 = 0;
 			} else if (myWorld.isGameOver() || myWorld.isHighScore()) {
-				myWorld.restart();
+				myWorld.menu();
 			}
 		}
-		
+
 		return false;
 
+	}
+
+	public boolean checkDistance() {
+		for (int i = 0; i < minions.size(); i++) {
+			minion = minions.get(i);
+
+			if (ninja.direction == Direction.LEFT
+					&& minion.velocity.x > 0
+					&& Intersector.overlaps(ninja.boundingRectangleMelee,
+							minion.boundingRectangle)) {
+				minions.remove(i);
+				GameWorld.cs += 1;
+				return true;
+			} else if (ninja.direction == Direction.RIGHT
+					&& minion.velocity.x < 0
+					&& Intersector.overlaps(ninja.boundingRectangleMelee,
+							minion.boundingRectangle)) {
+				minions.remove(i);
+				GameWorld.cs += 1;
+				return true;
+			} else if (ninja.direction == Direction.UP
+					&& minion.velocity.y > 0
+					&& Intersector.overlaps(ninja.boundingRectangleMelee,
+							minion.boundingRectangle)) {
+				minions.remove(i);
+				GameWorld.cs += 1;
+				return true;
+			} else if (ninja.direction == Direction.DOWN
+					&& minion.velocity.y < 0
+					&& Intersector.overlaps(ninja.boundingRectangleMelee,
+							minion.boundingRectangle)) {
+				minions.remove(i);
+				GameWorld.cs += 1;
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@Override

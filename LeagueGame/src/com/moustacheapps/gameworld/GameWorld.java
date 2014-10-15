@@ -4,6 +4,8 @@ import java.util.ArrayList;
 
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.moustacheapps.gameobjects.Minion;
+import com.moustacheapps.gameobjects.MinionGenerator;
 import com.moustacheapps.gameobjects.Ninja;
 import com.moustacheapps.gameobjects.Sword;
 import com.moustacheapps.lghelpers.AssetLoader;
@@ -13,12 +15,16 @@ public class GameWorld {
 	private Rectangle ground;
 	public static Rectangle leftBound, rightBound;
 	private static int score = 0, lives = 0, gamesNeeded = 10, timesPlayed;
+	public static int round = 0, cs = 0;
 	public static float runTime = 0;
 	public static int midPointY, midPointX;
 	private LGGameRenderer renderer;
 	private GameState currentState;
 	private Ninja ninja;
 	private ArrayList<Sword> swords = new ArrayList<Sword>();
+	private MinionGenerator generator;
+	
+	public static boolean generating = true;
 
 	public enum GameState {
 		MENU, START, RUNNING, GAMEOVER, HIGHSCORE
@@ -28,11 +34,12 @@ public class GameWorld {
 		currentState = GameState.MENU;
 		GameWorld.midPointY = midPointY;
 		GameWorld.midPointX = midPointX;
-		ninja = new Ninja(midPointX - 10, midPointY -11, 20, 22);
+		ninja = new Ninja(midPointX - 10, midPointY -11, 20, 22, this);
 		//scroller = new ScrollHandler(this, midPointY + 66);
 		ground = new Rectangle(0, midPointY + 66, 272, 11);
 		leftBound = new Rectangle(0, 0, 136, midPointY * 2);
 		rightBound = new Rectangle(136, 0, 136, midPointY * 2);
+		generator = new MinionGenerator(this, ninja);
 	}
 
 	public static Rectangle getRectangleLeft() {
@@ -61,8 +68,11 @@ public class GameWorld {
 	}
 
 	public void initSword(Vector2 velocity){
+		if (ninja.energy > 30) {
 		Sword sword = new Sword(midPointX - 1, midPointY - 6, 3, 12, velocity);
 		swords.add(sword);
+		ninja.energy -= 20;
+		}
 	}
 	
 	public ArrayList<Sword> getSwords() {
@@ -75,10 +85,19 @@ public class GameWorld {
 			delta = .15f;
 		}
 		
+		ninja.update(delta);
+		
 		for (int i = 0; i < swords.size(); i++) {
 			Sword s = (Sword) swords.get(i);
 			s.update(delta);
+			if (s.isOffScreen()){
+				swords.remove(i);
+			}
 		}
+		
+		generator.update(delta, swords);
+		
+		
 
 	}
 
@@ -112,9 +131,23 @@ public class GameWorld {
 	public void addScore(int increment) {
 		score += increment;
 	}
+	
+	public void menu() {
+		currentState = GameState.MENU;
+		cs = 0;
+		ninja.restart();
+		swords.clear();
+		generator.restart();
+		renderer.prepareTransition(0, 0, 0, 1f);
+	}
 
 	public void start() {
 		currentState = GameState.START;
+		renderer.prepareTransition(0, 0, 0, 1f);
+	}
+	
+	public void gameOver() {
+		currentState = GameState.GAMEOVER;
 		renderer.prepareTransition(0, 0, 0, 1f);
 	}
 
@@ -125,10 +158,11 @@ public class GameWorld {
 	public void restart() {
 		//getTimesPlayedPlusOne();
 		//AssetLoader.setTimesPlayed(timesPlayed);
-		score = 0;
-		lives = 0;
+		
+		cs = 0;
 		ninja.restart();
-		//scroller.onRestart();
+		swords.clear();
+		generator.restart();
 		start();
 	}
 
@@ -150,6 +184,11 @@ public class GameWorld {
 
 	public void setRenderer(LGGameRenderer renderer) {
 		this.renderer = renderer;
+		generator.setRenderer(renderer);
+	}
+	
+	public ArrayList<Minion> getMinions() {
+		return generator.getMinions();
 	}
 
 }
